@@ -1,0 +1,60 @@
+---
+title: "Problem Set 1"
+author: "Patrick Altmeyer"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  bookdown::html_document2:
+    code_folding: show
+    number_sections: false
+    toc: true
+    toc_float: true
+bibliography: bib.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+```
+
+## Problem 1
+
+```{python}
+a = 1
+```
+
+
+## Problem 2
+
+```{r}
+median_of_means <- function(x, block_size=NULL, delta=.05, permutation_invariant=F, N=1000) {
+  n <- length(x)
+  if (is.null(block_size)) {
+    block_size = round(n/(8 * log(1/delta))) # default block size
+  }
+  if (!permutation_invariant) {
+    x <- x[sample.int(n,n)] # shuffle
+    blocks <- split(x, ceiling(seq_along(x)/block_size))
+    median_of_means <- median(sapply(blocks, mean))
+  } else {
+    median_of_means <- mean(
+      sapply(
+        1:N, 
+        function(i) {
+          x <- x[sample.int(n,n)] # shuffle
+          blocks <- split(x, ceiling(seq_along(x)/block_size))
+          median_of_means <- median(sapply(blocks, mean))
+          return(median_of_means)
+        }
+      )
+    )
+  }
+  return(median_of_means)
+}
+
+
+```
+
+
+## Problem 3
+
+## Problem 4
