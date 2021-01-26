@@ -12,16 +12,12 @@ bibliography: bib.bib
 ---
 
 ```{r setup, include=FALSE}
+rm(list=ls())
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
 ```
 
 ## Problem 1
-
-```{python}
-a = 1
-```
-
 
 ## Problem 2
 
@@ -56,27 +52,25 @@ median_of_means <- function(x, block_size=NULL, delta=.05, permutation_invariant
 library(rmutil)
 library(data.table)
 # Parameters
-eps <- c(0.1,0.05,0.025,0.01,0.005)
-n <- c(100,1000,10000)
-block_size_ratio <- c(.01,.05,.1) # block size ratio of sample size n
+n <- round(exp(5:10))
+block_size_ratio <- c(.01,.1,0.5) # block size ratio of sample size n
 N <- c(10, 100) # number of random permutations
 # Distribution functions:
-t5 <- function(...,df=5) {
+t1 <- function(...,df=1) {
   rt(...,df=df)
 }
-t50 <- function(...,df=50) {
+t5 <- function(...,df=5) {
   rt(...,df=df)
 }
 dist_fun <- list(
   "gauss" = rnorm,
   "laplace" = rlaplace,
-  "t5" = t5,
-  "t50" = t50
+  "t1" = t1,
+  "t5" = t5
 )
 grid <- data.table(
   expand.grid(
     n = n,
-    eps = eps,
     dist = names(dist_fun),
     block_size_ratio = block_size_ratio,
     N = N
@@ -84,8 +78,8 @@ grid <- data.table(
 )
 ```
 
-```{r}
-J <- 1 # number of independent samples
+```{r run-search}
+J <- 100 # number of independent samples
 P <- nrow(grid) # number of parameter combinations
 performance <- rbindlist(
   lapply(
@@ -113,19 +107,103 @@ performance <- rbindlist(
               )
             )
             performance <- merge(grid[p,],performance)
-            performance[,higher_than_eps:=abs(estimate)>eps]
             performance[,sample:=j]
+            return(performance)
           }
         )
       )
+      return(performance)
     }
   )
 )
+eps <- data.table(eps=c(0.1,0.025,0.01))
+performance <- setkey(performance[,c(k=1,.SD)],k)[eps[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+performance[,mae:=abs(estimate)]
+performance[,higher_than_eps:=mae>eps]
+error_rates <- performance[
+  ,
+  .(error_rate=sum(higher_than_eps)/.N, mae=mean(abs(estimate))), # error percentage and mean absolute error
+  by=.(n,eps,dist,block_size_ratio,N,estimator)
+]
+saveRDS(performance, file = "data/mean_estimators_performance.rds")
+saveRDS(error_rates, file = "data/mean_estimators_error_rates.rds")
 ```
 
+```{r plot-error-rates}
+library(ggplot2)
+p <- ggplot(data = error_rates[block_size_ratio==0.05 & N==max(N)], aes(x=log(n), y=error_rate, colour=estimator)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(
+    rows = vars(eps),
+    cols = vars(dist)
+  ) +
+  scale_color_discrete(name="Estimator:") +
+  labs(
+    x="Sample size (logs)",
+    y="Probability of error"
+  )
+p
+```
 
+```{r}
+library(ggplot2)
+p <- ggplot(data = error_rates[block_size_ratio==0.05 & N==max(N)], aes(x=log(n), y=mae, colour=estimator)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~dist, ncol=2) +
+  scale_color_discrete(name="Estimator:") +
+  labs(
+    x="Sample size (logs)",
+    y="Mean absolute error"
+  )
+p
+```
 
+```{r}
+p <- ggplot(data = error_rates[estimator=="mom_permutation_inv"], aes(x=log(n), y=mae, colour=factor(block_size_ratio))) +
+  geom_point() +
+  geom_line() +
+  facet_grid(
+    rows = vars(N),
+    cols = vars(dist)
+  ) +
+  scale_color_discrete(name="Block size ratio:") +
+  labs(
+    x="Sample size (logs)",
+    y="Mean absolute error"
+  )
+p
+```
 
 ## Problem 3
 
 ## Problem 4
+
+```{r}
+random_projection <- function(n,d=2) {
+  I <- diag(n)
+  w <- matrix(rnorm(2*n), nrow=n)
+  A <- I %*% w
+  A_stand <- (A - mean(A[,1]))/sd(A[,1]) # center and rescale
+  dt <- data.table(A_stand, type="proj")
+  v <- matrix(rnorm(2*n), nrow=n)
+  dt <- rbind(dt, data.table(v, type="normal"))
+  dt[,n:=n]
+  return(dt)
+}
+n <- round(exp(4:9))
+dt <- rbindlist(
+  lapply(
+    n,
+    function(i) {
+      random_projection(i)
+    }
+  )
+)
+p <- ggplot(data = dt, aes(x=V1, y=V2, colour=type)) +
+  geom_point() +
+  facet_wrap(~factor(n), ncol=3)
+p
+```
+
