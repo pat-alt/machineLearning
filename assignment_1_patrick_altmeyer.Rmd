@@ -50,9 +50,80 @@ median_of_means <- function(x, block_size=NULL, delta=.05, permutation_invariant
   }
   return(median_of_means)
 }
-
-
 ```
+
+```{r grid-setup}
+library(rmutil)
+library(data.table)
+# Parameters
+eps <- c(0.1,0.05,0.025,0.01,0.005)
+n <- c(100,1000,10000)
+block_size_ratio <- c(.01,.05,.1) # block size ratio of sample size n
+N <- c(10, 100) # number of random permutations
+# Distribution functions:
+t5 <- function(...,df=5) {
+  rt(...,df=df)
+}
+t50 <- function(...,df=50) {
+  rt(...,df=df)
+}
+dist_fun <- list(
+  "gauss" = rnorm,
+  "laplace" = rlaplace,
+  "t5" = t5,
+  "t50" = t50
+)
+grid <- data.table(
+  expand.grid(
+    n = n,
+    eps = eps,
+    dist = names(dist_fun),
+    block_size_ratio = block_size_ratio,
+    N = N
+  )
+)
+```
+
+```{r}
+J <- 1 # number of independent samples
+P <- nrow(grid) # number of parameter combinations
+performance <- rbindlist(
+  lapply(
+    1:P,
+    function(p) {
+      list2env(c(grid[p,]), envir = environment()) # load parameters into function scope
+      performance <- rbindlist(
+        lapply( # loop over J samples 
+          1:J,
+          function(j) {
+            x <- dist_fun[[dist]](n=n) # n random draws from given distribution
+            block_size <- block_size_ratio * n
+            # Compute the estimates:
+            performance <- data.table(
+              n = n,
+              estimator = c(
+                "emp_mean",
+                "median_of_means",
+                "mom_permutation_inv"
+              ),
+              estimate = c(
+                mean(x),
+                median_of_means(x, block_size = block_size),
+                median_of_means(x, block_size = block_size, permutation_invariant = TRUE, N=N)
+              )
+            )
+            performance <- merge(grid[p,],performance)
+            performance[,higher_than_eps:=abs(estimate)>eps]
+            performance[,sample:=j]
+          }
+        )
+      )
+    }
+  )
+)
+```
+
+
 
 
 ## Problem 3
