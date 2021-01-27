@@ -131,7 +131,7 @@ saveRDS(error_rates, file = "data/mean_estimators_error_rates.rds")
 
 ```{r plot-error-rates}
 library(ggplot2)
-p <- ggplot(data = error_rates[block_size_ratio==0.05 & N==max(N)], aes(x=log(n), y=error_rate, colour=estimator)) +
+p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==max(N)], aes(x=log(n), y=error_rate, colour=estimator)) +
   geom_point() +
   geom_line() +
   facet_grid(
@@ -148,10 +148,10 @@ p
 
 ```{r}
 library(ggplot2)
-p <- ggplot(data = error_rates[block_size_ratio==0.05 & N==max(N)], aes(x=log(n), y=mae, colour=estimator)) +
+p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==max(N)], aes(x=log(n), y=mae, colour=estimator)) +
   geom_point() +
   geom_line() +
-  facet_wrap(~dist, ncol=2) +
+  facet_wrap(~dist, ncol=2, scales = "free") +
   scale_color_discrete(name="Estimator:") +
   labs(
     x="Sample size (logs)",
@@ -160,13 +160,31 @@ p <- ggplot(data = error_rates[block_size_ratio==0.05 & N==max(N)], aes(x=log(n)
 p
 ```
 
-```{r}
+```{r, fig.height=3.5, fig.width=8}
 p <- ggplot(data = error_rates[estimator=="mom_permutation_inv"], aes(x=log(n), y=mae, colour=factor(block_size_ratio))) +
   geom_point() +
   geom_line() +
-  facet_grid(
-    rows = vars(N),
-    cols = vars(dist)
+  facet_wrap(
+    N~dist,
+    scales = "free_y",
+    ncol = 4
+  ) +
+  scale_color_discrete(name="Block size ratio:") +
+  labs(
+    x="Sample size (logs)",
+    y="Mean absolute error"
+  )
+p
+```
+
+```{r}
+p <- ggplot(data = error_rates[estimator=="median_of_means" & N==max(N)], aes(x=log(n), y=mae, colour=factor(block_size_ratio))) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(
+    ~dist,
+    scales = "free_y",
+    ncol = 2
   ) +
   scale_color_discrete(name="Block size ratio:") +
   labs(
