@@ -8,6 +8,8 @@ output:
     number_sections: false
     toc: true
     toc_float: true
+  bookdown::pdf_document2:
+    toc: false
 bibliography: bib.bib
 ---
 
@@ -17,9 +19,70 @@ knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
 ```
 
-## Problem 1
+# Problem 1
 
-## Problem 2
+## Chebyshev
+
+We can derive Chebyshev's inequality as follows
+
+![](www/ps1_cheby.png)
+
+where the derivation for the expected value of the differences is as follows
+
+![](www/ps1_cheby_exp.png)
+
+and the derivation of the variance term is as follows:
+
+![](www/ps1_cheby_var.png)
+
+For a fixed distance $\varepsilon$, variance $\sigma^2_m$ and sample size $n$ we can simply solve right-hand side of the concentration inequality for $N$ by equating it to some $\delta$ of our choice. For example, suppose we are interested $\delta=0.10$ and let $n=10000$, $\sigma_m^2=1$, $\varepsilon=0.1$. Then a good choice of $N$ would be 1000:
+
+![](www/ps1_cheby_N.png)
+
+In other words the choice of $N$ is basically independent of $n$ as $n$ gets large. 
+
+## Hoeffding
+
+It is easy to see that for large choices of $N$ and values of $n$ both estimators have the same expected value. Let $\mu$ denote that expected value. Then noting that each $m(\sigma_j)$ is bounded by $m(\sigma_j) \in [a_i=\min(\mathbf{\mathbf{X}}), b_i=\max(\mathbf{\mathbf{X}})]$ we can apply Hoeffding. For the ideal, infeasible estimator we have
+
+$$
+\begin{aligned}
+&& p(|\bar{m}_n-\mu| \ge \varepsilon)&= 2\exp\left( \frac{2n^2\varepsilon^2}{ \sum_{i}^{}(b_i-a_i)^2}\right) \\
+\end{aligned}
+$$
+and the expression for $\hat{m}_{n,N}$ is analogous. Noting that this expression depends on $\varepsilon$ we can let this distance to the expected value be different for $\hat{m}_{n,N}$ and $\bar{m}_{n}$. This enables us to make the following claim: with a probability of at least $1-\delta$ we have
+
+![](www/ps1_hoeffding.png)
+
+which we can rewrite as:
+
+![](www/ps1_hoeffding_2.png)
+
+There are two worst-case scenarios that would maximise the distance between the to estimators: either the first inequality is binding on the left side and the second inequality is binding on the right side or the other way around. Under the first case we can write
+
+![](www/ps1_hoeffding_case.png)
+
+and since the same logic applies to the second case it follows
+
+![](www/ps1_hoeffding_case_abs.png)
+
+which is the distance we were originally after. Now notice that this is very similar to what we obtained earlier when we applied Chebyshev: for given $\delta$, $n$, $\varepsilon$ and $\mathbf{X}$ (given $\mathbf{X}$ both $a$ and $b$ are deterministic) we once again can simply solve for $N$. Using the same parameter choice as before and assuming $a=0$, $b=1$ this solves to $N\approx265$:
+
+![](www/ps1_hoeffding_N.png)
+
+Hoeffding's inequality consequently prescribes a lower choice of $N$, which is intuitive since the inequality is tighter. 
+
+## Chernoff
+
+We can apply Chernoff bounds to both estimators. For the ideal, infeasible one we have
+
+![](www/ps1_chernoff.png)
+
+and equivalently applying Chernoff to $\hat{m}_{n,N}$ yields the same expression with $N$ instead of $n!$ in the denominator of the exponential. These expressions to not depend on the distance $\varepsilon$ as with Hoeffding, so we cannot apply the same logic as before where we let the distance vary by estimator. However we know that as long as $N<n!$ the concentration inequality for $\bar{m}_n$ will be tighter than for $\hat{m}_{n,N}$. Hence, we can always just look at $\delta_N$ (corresponding to the wider bound) and know that if the inequality holds for $\hat{m}_{n,N}$ then for the same $\delta_N$ it must also hold for $\bar{m}_n$. Hence we could proceed as we did before for Hoeffding, which I omit here.
+
+# Problem 2
+
+The median-of-means estimator and its permutation-invariant Monte-Carlo alternative can be implemented in R as follows:
 
 ```{r}
 median_of_means <- function(x, block_size=NULL, delta=.05, permutation_invariant=F, N=1000) {
@@ -48,7 +111,9 @@ median_of_means <- function(x, block_size=NULL, delta=.05, permutation_invariant
 }
 ```
 
-```{r grid-setup}
+To run the simulation I first set up a grid of parameter combinations. Samples will be drawn from four distribution: two distributions with light tails -- Gaussian and Laplace -- and two heavy-tailed student-$t$ distributions with one and five degrees of freedom, respectively.
+
+```{r grid-setup, message=FALSE, warning=FALSE}
 library(rmutil)
 library(data.table)
 # Parameters
@@ -78,7 +143,9 @@ grid <- data.table(
 )
 ```
 
-```{r run-search}
+I then run across the rows of the grid and for each parameter combination/row run the experiment $J=100$ times each time computing the the three different estimators. Since I generate data with $\mathbb{E}\left(\mathbf{X}\right)=0$, the absolute values of the obtained point estimates correspond to the mean absolute error (MAE). Hence, in order to estimate error probabilities for a given distance $\varepsilon$ it suffices to compute the proportion of draws for which the MAE exceeds $\varepsilon$. Below follows the code that runs experiment: 
+
+```{r run-search, eval=F}
 J <- 100 # number of independent samples
 P <- nrow(grid) # number of parameter combinations
 performance <- rbindlist(
@@ -129,7 +196,13 @@ saveRDS(performance, file = "data/mean_estimators_performance.rds")
 saveRDS(error_rates, file = "data/mean_estimators_error_rates.rds")
 ```
 
-```{r plot-error-rates}
+## Error probabilities
+
+The first plot provides an overall picture of the effects of sample size and distribution as well as insight into how the performacme differs across the different estimators (Figure \@ref(fig:plot-error-rates); block size and $N$ are both held constant). A few unsurprising observations stand out immediately: (i) error rates decrease with sample size, (ii) the probability of decreases with the distance $\varepsilon$ and (iii) error probabilities are generally higher for heavy-tailed distributions due to the presence of outliers. Another observation that holds here and across the following illustrations is that the median-of-means (non permutation-invariant) generally does worse than the other two estimators, except for the very heavy-tailed $t$-distribution with 1 degree of freedom ($t1$). And intuitive result is also that both median-of-means estimators outperform the empirical mean for the $t1$-distribution: they are more robust to outliers than the empirical mean.
+
+```{r plot-error-rates, fig.cap="Probability of error by distribution (columns) and distance from expected value (rows)."}
+performance <- readRDS(file = "data/mean_estimators_performance.rds")
+error_rates <- readRDS(file = "data/mean_estimators_error_rates.rds")
 library(ggplot2)
 p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==max(N)], aes(x=log(n), y=error_rate, colour=estimator)) +
   geom_point() +
@@ -146,7 +219,11 @@ p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==m
 p
 ```
 
-```{r}
+## Mean absolute error
+
+Figure \@ref(fig:mae) instead plots the mean absolute error rates directly. The same picture emerges overall. As the bottom-left panel illustrates, it can be very dangerous to use the empirical mean in the presence of outliers. Bother median-of-mean estimators fair much better.
+
+```{r mae, fig.cap="Mean absolute errors."}
 library(ggplot2)
 p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==max(N)], aes(x=log(n), y=mae, colour=estimator)) +
   geom_point() +
@@ -160,7 +237,11 @@ p <- ggplot(data = error_rates[block_size_ratio==median(block_size_ratio) & N==m
 p
 ```
 
-```{r, fig.height=3.5, fig.width=8}
+## Block size and $N$
+
+The next two illustrations focus on the median-of-means. Figure \@ref(fig:median-of-means) shows the mean absolute error rates for the permutation-invariant median-of-means. I let $N$ vary across rows. Different colours correspond to different block sizes. Errors in the bottom row are generally lower, indicative of the fact that higher values of $N$ mitigates the bias associated with the median-of-means estimator. Smaller block sizes tend to have a similar effect, although this does not always hold.
+
+```{r median-of-means, fig.height=3.5, fig.width=8, fig.cap="Permutation-invariant median-of-means for different choices of $N$ and different block sizes."}
 p <- ggplot(data = error_rates[estimator=="mom_permutation_inv"], aes(x=log(n), y=mae, colour=factor(block_size_ratio))) +
   geom_point() +
   geom_line() +
@@ -177,7 +258,9 @@ p <- ggplot(data = error_rates[estimator=="mom_permutation_inv"], aes(x=log(n), 
 p
 ```
 
-```{r}
+Interestingly, block size appears to have the opposite effect on the median-of-means estimator that does not take into account the effect of permutations. Excpet for the very heavy-tailed $t1$-distribution, smaller block sizes tend to produce better results. This is simply due to the fact that as the block size approaches 1, the median-of-means estimator approaches the empirical mean. As we have seen in the previous charts, the empirical mean is unbiased and hence a better choice whenever outliers are not a big deal.
+
+```{r mom, fig.cap="Median-of-means without bias correction."}
 p <- ggplot(data = error_rates[estimator=="median_of_means" & N==max(N)], aes(x=log(n), y=mae, colour=factor(block_size_ratio))) +
   geom_point() +
   geom_line() +
@@ -194,22 +277,53 @@ p <- ggplot(data = error_rates[estimator=="median_of_means" & N==max(N)], aes(x=
 p
 ```
 
-## Problem 3
+# Problem 3
 
-## Problem 4
+The first two moments can be derived as follows:
+
+![](www/ps1_3_moments.png)
+
+In order to derive a concentration inequality when can apply Chernoff:
+
+![](www/ps1_3_concentration.png)
+
+On order to determine the "typical" magnitude of the cosine of the angle between the two independent vectors, it may suffice to specify the first two moments of the distribution of the cosine. 
+
+## Unconditonal moments of cosine
+
+In order to derive the expected value of the cosine, assume the norm of both $\mathbf{X}$ and $\mathbf{Y}$ is equal to 1. Then we have the following:
+
+![](www/ps1_3_exp_val.png)
+
+Of course, this only holds under the assumption we made. But notice that we can always find some vector $\mathbf{a}$ such that $||\mathbf{a}||=c||\mathbf{X}||$ and $\mathbf{b}$ such that $||\mathbf{b}||=k||\mathbf{Y}||$ while the angle between $\mathbf{a}$ and $\mathbf{b}$ may still be the same as before. In other words we can stretch or squeeze both $\mathbf{X}$ and $\mathbf{Y}$ such that their norm changes, but the angle between remains the same. For such $\mathbf{a}$ and $\mathbf{b}$ we still have that the expected value of the cosine is zero.
+
+For the variance we can proceeds as follows:
+
+![](www/ps1_3_var.png)
+
+*Here I got stuck and did not know how to proceed*.
+
+# Problem 4
+
+The program can be implemented in R as follows:
 
 ```{r}
 random_projection <- function(n,d=2) {
-  I <- diag(n)
-  w <- matrix(rnorm(2*n), nrow=n)
-  A <- I %*% w
-  A_stand <- (A - mean(A[,1]))/sd(A[,1]) # center and rescale
+  I <- diag(n) # matrix of basis vectors
+  w <- matrix(rnorm(2*n), nrow=n) # random 2-d vector of weights
+  A <- I %*% w # linear projection
+  A_stand <- (A - mean(A[,1]))/sd(A[,1]) # center and rescale 
   dt <- data.table(A_stand, type="proj")
-  v <- matrix(rnorm(2*n), nrow=n)
+  v <- matrix(rnorm(2*n), nrow=n) # some random Gaussian 2-d vector
   dt <- rbind(dt, data.table(v, type="normal"))
   dt[,n:=n]
   return(dt)
 }
+```
+
+Applying this for different values of $n$ yields the picture below. It turns out that the random projection of $n$-dimesional basis vectors onto the $2$-dimensional plane is also random and hence resembles random draws from a bivariate Gaussian distribution.
+
+```{r}
 n <- round(exp(4:9))
 dt <- rbindlist(
   lapply(
@@ -221,7 +335,9 @@ dt <- rbindlist(
 )
 p <- ggplot(data = dt, aes(x=V1, y=V2, colour=type)) +
   geom_point() +
-  facet_wrap(~factor(n), ncol=3)
+  facet_wrap(~factor(n), ncol=3) +
+  scale_color_discrete(name="Type:")
 p
 ```
+
 
