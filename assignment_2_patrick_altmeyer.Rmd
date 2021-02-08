@@ -1,0 +1,105 @@
+---
+title: "Problem Set 2"
+author: "Patrick Altmeyer"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  bookdown::pdf_document2:
+    toc: false
+  bookdown::html_document2:
+    code_folding: show
+    number_sections: false
+    toc: true
+    toc_float: true
+bibliography: bib.bib
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+library(data.table)
+```
+
+# Piece-wise CDFs
+
+# Nearest neighbor regression
+
+```{r}
+source("R/nn_reg.R")
+```
+
+
+```{r, eval=FALSE}
+d <- 1
+n <- c(100,1000,10000)
+beta <- abs(c(1,rep(rnorm(d,mean = 0.2))))
+sigma <- 0.1
+k <- 1
+output <- rbindlist(
+  lapply(
+    1:length(n),
+    function(i) {
+      X <- matrix(rnorm(d*n[i]),n[i])
+      y <- cbind(1,X) %*% beta + rnorm(n[i],sd = sigma)
+      y_hat_ols <- qr.fitted(qr.default(cbind(1,X)),y)
+      y_hat_knn <- nn_reg(X,y,k)
+      output <- data.table(
+        type=c("ols","knn"),
+        mse=c(mean((y-y_hat_ols)^2), mean((y-y_hat_knn)^2)),
+        n=n[i]
+      )
+      return(output)
+    }
+  )
+)
+```
+
+
+# Bayes risk
+
+# NN for binary classification
+
+```{r}
+sim_data <- function(n,d) {
+  X <- matrix(runif(n*d),n) # uniform 0,1
+  p_y <- rowSums(X[,1:2])/2 # probabilities of each Bernoulli trial
+  y <- rbinom(n, 1, p_y)
+  return(list(X=X,y=y))
+}
+```
+
+
+```{r}
+d <- c(5,10,15)
+n <- c(50,500,1000)
+k <- c(1,3,5,7,9)
+J <- 100 # number of independent samples
+grid <- data.table(expand.grid(n=n,d=d,k=k))
+output <- rbindlist(
+  lapply(
+    1:nrow(grid),
+    function(i) {
+      list2env(c(grid[i,]), envir = environment())
+      performance <- rbindlist(
+        lapply( # loop over J samples 
+          1:J,
+          function(j) {
+            list2env(sim_data(n,d),envir = environment())
+            fitted <- knn_classifier(X,y,k)
+            prob_error <- sum(y!=fitted)/n
+            performance <- data.table(
+              k = k,
+              n = n,
+              j = j,
+              d = d,
+              prob_error = prob_error
+            )
+            return(performance)
+          }
+        )
+      )
+      return(performance)
+    }
+  )
+)
+```
