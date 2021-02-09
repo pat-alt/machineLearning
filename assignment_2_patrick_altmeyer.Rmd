@@ -22,12 +22,59 @@ library(data.table)
 
 # Piece-wise CDFs
 
+We are given the conditional CDFs 
+
+![](www/ps2_5_cdf.png)
+
+from which the conditional PDFs can be derived:
+
+![](www/ps2_5_pdf.png)
+
+Then we have for the joint PDF:
+
+![](www/ps2_5_joint_pdf.png)
+
+Using Bayes rule we can then determine a functional form for $\eta(\mathbf{X})$
+
+![](www/ps2_5_eta.png)
+
+which can be illustrated as follows:
+
+![](www/ps2_5_eta_chart.png)
+
+## Bayes classifier and risk
+
+Then we have for the Bayes classifier and corresponding risk:
+
+![](www/ps2_5_bayes.png)
+
+## 1-NN
+
+For the 1-NN we can not that the following holds asymptotically:
+
+![](www/ps2_5_nn_logic.png)
+
+And consequently applying this here we get:
+
+![](www/ps2_5_1nn.png)
+
+## 3-NN
+
+Similarly, we can show for the 3-NN rule:
+
+![](www/ps2_5_3nn.png)
+
 # Nearest neighbor regression
+
+We can derive the optimal predictor as follows:
+
+![](www/ps2_6_optimal_predictor.png)
+
+In other words, the optimal predictor $f^*$ of $\mathbf{Y}$ given $\mathbf{X}$ is just the conditional mean of $\mathbf{Y}$ given $\mathbf{X}$.
 
 ```{r}
 source("R/knn_regressor.R")
 ```
-
 
 ```{r, eval=FALSE}
 d <- 1
