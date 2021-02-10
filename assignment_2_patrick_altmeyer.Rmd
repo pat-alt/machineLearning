@@ -15,7 +15,7 @@ bibliography: bib.bib
 
 ```{r setup, include=FALSE}
 rm(list=ls())
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(reticulate)
 library(data.table)
 ```
@@ -66,11 +66,43 @@ Similarly, we can show for the 3-NN rule:
 
 # Nearest neighbor regression
 
+## Maths
+
 We can derive the optimal predictor as follows:
 
 ![](www/ps2_6_optimal_predictor.png)
 
 In other words, the optimal predictor $f^*$ of $\mathbf{Y}$ given $\mathbf{X}$ is just the conditional mean of $\mathbf{Y}$ given $\mathbf{X}$.
+
+Then the Bayes risk just corresponds to the irreducible error $R^*=\sigma_{\varepsilon}^2$:
+
+![](www/ps2_6_bayes.png)
+
+Now note that for any KNN regressor we can decompose its risk as follows:
+
+![](www/ps2_6_bias_variance.png)
+
+where for the variance term we can further simplify:
+
+![](www/ps2_6_variance.png)
+
+Then asymptotically we can show:
+
+![](www/ps2_6_asymptotic.png)
+
+
+Then it is finally easy to see the asymptotic risks of the 1NN and KNN regressor:
+
+![](www/ps2_6_asymptotic_risks.png)
+
+## Program
+
+The KNN regressor can be implemented in R as follows:
+
+```{r code=readLines("R/knn_regressor.R"), echo=TRUE, eval=FALSE}
+```
+
+Using this regressor I simulate data multiple times, fit and predict from the regressor and compute the mean squared error each time. I vary the dimensions $d$, the number of neighbours $k$ and the sample size $n$.
 
 ```{r}
 source("R/knn_regressor.R")
@@ -185,15 +217,20 @@ $$
 \end{aligned}
 $$
 
-
 ## Program
+
+The KNN classifier can be implemented in R as follows:
+
+```{r code=readLines("R/knn_classifier.R"), echo=TRUE, eval=FALSE}
+```
 
 ```{r}
 source("R/knn_classifier.R")
 ```
 
+To simulate the data I use the following helper function:
 
-```{r}
+```{r, echo=TRUE}
 sim_data <- function(n,d) {
   X <- matrix(runif(n*d),n) # uniform 0,1
   p_y <- rowSums(X[,1:2])/2 # probabilities of each Bernoulli trial
@@ -202,6 +239,8 @@ sim_data <- function(n,d) {
 }
 ```
 
+
+I then run the programm multiple times varying the dimension $d$, the number of neighbours $k$ and the sample size $n$. Each time I compute the frequency of error and finally average over those frequencies to obtain an estimate of the probability of error.
 
 ```{r, eval=F}
 set.seed(111)
