@@ -77,34 +77,116 @@ source("R/knn_regressor.R")
 ```
 
 ```{r, eval=FALSE}
-d <- 1
-n <- c(100,1000,10000)
-beta <- abs(c(1,rep(rnorm(d,mean = 0.2))))
+set.seed(111)
+d <- round(exp(1:4))
+n <- round(exp(4:8))
+k <- c(1,3,5,7,9)
+J <- 100 # number of independent samples
 sigma <- 0.1
-k <- 1
+grid <- data.table(expand.grid(n=n,d=d,k=k))
 output <- rbindlist(
   lapply(
-    1:length(n),
+    1:nrow(grid),
     function(i) {
-      X <- matrix(rnorm(d*n[i]),n[i])
-      y <- cbind(1,X) %*% beta + rnorm(n[i],sd = sigma)
-      y_hat_ols <- qr.fitted(qr.default(cbind(1,X)),y)
-      y_hat_knn <- knn_regressor(X,y,k)
-      output <- data.table(
-        type=c("ols","knn"),
-        mse=c(mean((y-y_hat_ols)^2), mean((y-y_hat_knn)^2)),
-        n=n[i]
+      list2env(c(grid[i,]), envir = environment())
+      beta <- abs(c(1,rep(rnorm(d,mean = 0.2))))
+      performance <- rbindlist(
+        lapply( # loop over J samples 
+          1:J,
+          function(j) {
+            X <- matrix(rnorm(d*n),n)
+            y <- cbind(1,X) %*% beta + rnorm(n,sd = sigma)
+            fitted <- knn_regressor(X,y,k)
+            mse <- mean((y-fitted)^2)
+            performance <- data.table(
+              k = k,
+              n = n,
+              j = j,
+              d = d,
+              mse = mse
+            )
+            return(performance)
+          }
+        )
       )
-      return(output)
+      return(performance)
     }
   )
 )
+saveRDS(output, file="data/knn_reg_errors.rds")
+```
+
+```{r}
+library(ggplot2)
+output <- readRDS(file="data/knn_reg_errors.rds")
+ggplot(data=output[,.(mse=mean(mse)),by=.(k,n,d)], aes(x = log(n), y=mse)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(
+    rows = vars(d),
+    cols = vars(k),
+    scales = "free_y"
+  )
 ```
 
 
 # Bayes risk
 
 # NN for binary classification
+
+## Maths
+
+Bayes risk and the asymptotic risks of the different KNN classifiers involves an expectation with respect to $\eta(\mathbf{X})= \frac{x^{(1)}+x^{(2)}}{2}$. To solve for that we first need to know the density of $z=x^{(1)}+x^{(2)}$. It turns out that $z$ follows a *triangular* distribution with density
+
+![](www/ps2_8_density.png)
+
+
+This can be shown as follows:
+
+![](www/ps2_8_derivation_density.png)
+
+Then consider the following two cases: (1) $0<z\le1$ and (2) $1<z<2$. For these cases we have the following:
+
+![](www/ps2_8_2cases.png)
+Using this density function we can now solve for the expectation.
+
+### Bayes risk
+
+The Bayes risk is $R^*= \frac{1}{3}$ which can be computed as follows:
+
+![](www/ps2_8_bayes.png)
+
+### 1NN
+
+The risk of the 1NN classifier is $R^{1NN}= \frac{5}{12}$ which can be shown as follows:
+
+![](www/ps2_8_1nn.png)
+
+A quick sanity check shows that 
+
+$$
+\begin{aligned}
+&& R^{1NN}&=\frac{5}{12}< \frac{4}{9} = 2 R^*(1-R^*)
+ \\
+\end{aligned}
+$$
+
+### 3NN
+
+The risk of the 3NN classifier is $R^{3NN}= \frac{47}{120}$ which can be shown as follows:
+
+![](www/ps2_8_3nn.png)
+
+In conclusion we have that:
+
+$$
+\begin{aligned}
+&& R^*&= \frac{40}{120} < R^{3NN}= \frac{47}{120} < R^{1NN}= \frac{50}{120}\\
+\end{aligned}
+$$
+
+
+## Program
 
 ```{r}
 source("R/knn_classifier.R")

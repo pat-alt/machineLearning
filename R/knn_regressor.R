@@ -1,4 +1,4 @@
-nn_reg <- function(X,y,k, ...) {
+knn_regressor <- function(X,y,k, ...) {
   row_idx <- 1:nrow(X)
   distances <- data.table(t(combn(row_idx,2)))
   distances[,dist:=c(dist(X,...))]
