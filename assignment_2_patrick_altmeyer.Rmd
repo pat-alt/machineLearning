@@ -64,6 +64,8 @@ Similarly, we can show for the 3-NN rule:
 
 ![](www/ps2_5_3nn.png)
 
+\pagebreak
+
 # Nearest neighbor regression
 
 ## Maths
@@ -148,21 +150,43 @@ output <- rbindlist(
 saveRDS(output, file="data/knn_reg_errors.rds")
 ```
 
-```{r}
+Below in Figure \@ref(fig:rmse) I plot the resulting estimated root mean squared error (RMSE) against (log) sample size for different values of dimension $d$. Each column represents a different choice of $K$ increasing from left to right. We can make three important and intuitive observations:
+
+1. The probability of error decreases with sample size. This is expected since asymptotically the distance between the label of $x_i$ and its neighbours labels approaches zero.
+
+2. The probability of error decreases somewhat with $K$ (for large values of $n$). This reflects that the complexity of the KNN regressor is inversely related to $K$ and hence its variance decreases as we increase the number of neighbours. Since asymptotically the bias of the KNN regressor is zero anyway, we can do better by decreasing the variance of the estimator through higher choices of $K$.
+
+3. The probability of error for fixed $n$ explodes as the dimensionality increases. This is driven by the fact that the bias -- i.e. is the distance between $x_i$ and its neighbours -- takes longer to converge to zero as $d$ grows. In particular, that distance is typically of the order of $n^{- \frac{1}{d}}$. 
+
+```{r rmse, fig.height=2, fig.width=10, fig.cap="Root mean squared error (RMSE) of KNN regressor for different sample sizes and dimensions. The number of K nearest neighbours increases from left to right."}
 library(ggplot2)
 output <- readRDS(file="data/knn_reg_errors.rds")
-ggplot(data=output[,.(mse=mean(mse)),by=.(k,n,d)], aes(x = log(n), y=mse)) +
+ggplot(data=output[,.(mse=mean(mse)),by=.(k,n,d)], aes(x = log(n), y=sqrt(mse), colour=factor(d))) +
   geom_line() +
   geom_point() +
   facet_grid(
-    rows = vars(d),
-    cols = vars(k),
-    scales = "free_y"
+    cols = vars(k)
+  ) +
+  scale_color_discrete(name="Dimension:") +
+  labs(
+    x="Sample size (logs)",
+    y="RMSE"
   )
 ```
 
+\pagebreak
 
-# Bayes risk
+# Bayes risk $R_k^* \le e^{-ck}$
+
+This can be shown as follows:
+
+![](www/ps2_7.png)
+
+And hence:
+
+![](www/ps2_7_results.png)
+
+\pagebreak
 
 # NN for binary classification
 
@@ -216,6 +240,8 @@ $$
 && R^*&= \frac{40}{120} < R^{3NN}= \frac{47}{120} < R^{1NN}= \frac{50}{120}\\
 \end{aligned}
 $$
+
+At the limit where $n \rightarrow \infty$ these asymptotic quantities do not depend on the dimensionality. This is because the bias of the KNN classifier -- that is the distance between $x_i$ and its neighbours -- eventually converges to zero as $n$ grows very large. As we saw earlier for the KNN regressor, this is the only point where the dimensionality comes into play, and evidently at the limit it has no effect on the probability of error. However, the dimensionality does affect the *rate* of convergence as we discussed in class. In other words, the higher $d$, the longer it takes to reach the asymptotic quantities, which will become more evident in the following section.
 
 ## Program
 
@@ -279,15 +305,28 @@ output <- rbindlist(
 saveRDS(output, file="data/knn_errors.rds")
 ```
 
-```{r}
+Below in Figure \@ref(fig:prob-error) I plot the resulting estimated probability of error against (log) sample size for different values of dimension $d$. Each column represents a different choice of $K$ increasing from left to right. We can make three important and intuitive observations, very similar to what we have seen earlier for the KNN regressor.
+
+1. The probability of error decreases with sample size. This is expected since asymptotically the distance between the label of $x_i$ and its neighbours labels approaches zero.
+
+2. The probability of error decreases with $K$ (for large values of $n$). This reflects that the complexity of the KNN classifier is inversely related to $K$ and hence its variance decreases as we increase the number of neighbours. Since asymptotically the bias of the KNN classifier is zero anyway, we can do better by decreasing the variance of the estimator through higher choices of $K$.
+
+3. The probability of error for fixed $n$ increases as the dimensionality increases. This is driven by the fact that the bias -- i.e. is the distance between $x_i$ and its neighbours -- takes longer to converge to zero as $d$ grows. In particular, that distance is typically of the order of $n^{- \frac{1}{d}}$. Contrary to the KNN regressor the distance between labels of $x_i$ and its neighbours is of course bounded in this case, so we do not observe the same explosive increase in the error.
+
+```{r prob-error, fig.width=10, fig.height=2, fig.cap="Probability of error of KNN classifier for different sample sizes and dimensions. The number of K nearest neighbours increases from left to right."}
 library(ggplot2)
 output <- readRDS(file="data/knn_errors.rds")
-ggplot(data=output[,.(prob_error=mean(prob_error)),by=.(k,n,d)], aes(x = log(n), y=prob_error)) +
+ggplot(data=output[,.(prob_error=mean(prob_error)),by=.(k,n,d)], aes(x = log(n), y=prob_error, colour=factor(d))) +
   geom_line() +
   geom_point() +
   facet_grid(
-    rows = vars(d),
     cols = vars(k)
+  ) +
+  scale_color_discrete(name="Dimension:") +
+  labs(
+    x="Sample size (logs)",
+    y="Probability of error"
   )
 ```
+
 
