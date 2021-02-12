@@ -178,13 +178,27 @@ ggplot(data=output[,.(mse=mean(mse)),by=.(k,n,d)], aes(x = log(n), y=sqrt(mse), 
 
 # Bayes risk $R_k^* \le e^{-ck}$
 
-This can be shown as follows:
+**Disclaimer:** I have spent quite some time on this one and thought of various approaches, but for none of them really managed to convince myself.
+
+## Using majority rule
+
+An approaching using the majority rule is as follows:
 
 ![](www/ps2_7.png)
 
 And hence:
 
 ![](www/ps2_7_results.png)
+
+## Cases
+
+Another approach I thought about was to look at the two cases of the minimum. By the conditional independence assumption we have:
+
+![](www/ps2_7_conditional.png)
+
+The we can look at the two cases as follows:
+
+![](www/ps2_7_cases.png)
 
 \pagebreak
 
