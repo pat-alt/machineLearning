@@ -50,7 +50,7 @@ class SmallestCubeClassifier():
     idx = np.array([i for i in range(len(y)) if y[i]==1])
     self.bounds = (np.min(X[idx,]), np.max(X[idx,]))
   def transform(self,X):
-    self.predicted = np.array([int(i.all()) for i in (X >= bounds[0]) & (X <= bounds[1])])
+    self.predicted = np.array([int(i.all()) for i in (X >= self.bounds[0]) & (X <= self.bounds[1])])
     return self.predicted
 ```
 
@@ -66,16 +66,16 @@ class SmallestRectangleClassifier():
     idx = np.array([i for i in range(len(y)) if y[i]==1])
     self.bounds = [[np.min(X[idx,j]) for j in range(X.shape[1])], [np.max(X[idx,j]) for j in range(X.shape[1])]]
   def transform(self,X):
-    self.predicted = np.array([int(i.all()) for i in (X >= bounds[0]) & (X <= bounds[1])])
+    self.predicted = np.array([int(i.all()) for i in (X >= self.bounds[0]) & (X <= self.bounds[1])])
     return self.predicted
 ```
 
 
 ```{r, eval=FALSE}
 set.seed(111)
-d <- round(exp(1:4))
-n <- round(exp(4:8))
-J <- 100 # number of independent test sets
+d <- round(exp(seq(2,6,length.out=10)))
+n <- round(exp(seq(3,9,length.out=50)))
+J <- 10 # number of independent test sets
 classifier_instances <- list(
   "cube" = py$SmallestCubeClassifier(),
   "rectangle" = py$SmallestRectangleClassifier()
@@ -112,6 +112,8 @@ output <- rbindlist(
           }
         )
       )
+      # message("Done with:")
+      # message(c(grid[i,]))
       return(performance)
     }
   )
@@ -119,17 +121,19 @@ output <- rbindlist(
 saveRDS(output, file="data/erm.rds")
 ```
 
-```{r prob-error, fig.cap="Probability of error of the two classifiers for different sample sizes and dimensions."}
+```{r prob-error, fig.height=4, fig.width=10, fig.cap="Probability of error of the two classifiers for different sample sizes and dimensions."}
 library(ggplot2)
 output <- readRDS(file="data/erm.rds")
-ggplot(data=output[,.(prob_error=mean(error)),by=.(classif,n,d)], aes(x = log(n), y=prob_error, colour=factor(d), linetype=factor(classif))) +
+ggplot(data=output[,.(prob_error=mean(error)),by=.(classif,n,d)], aes(x = n, y=prob_error, colour=factor(d))) +
   geom_line() +
-  geom_point() +
   scale_color_discrete(name="Dimension:") +
   scale_linetype_discrete(name="Classifier:") +
   labs(
-    x="Sample size (logs)",
+    x="Sample size",
     y="Probability of error"
+  ) + 
+  facet_grid(
+    cols = vars(classif)
   )
 ```
 
