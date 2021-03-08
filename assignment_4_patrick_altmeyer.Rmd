@@ -1,0 +1,82 @@
+---
+title: "Problem Set 4"
+author: "Patrick Altmeyer"
+date: "`r format(Sys.Date(), '%d %B, %Y')`"
+output: 
+  bookdown::pdf_document2:
+    toc: false
+    number_sections: false
+  bookdown::html_document2:
+    code_folding: show
+    number_sections: false
+    toc: true
+    toc_float: true
+bibliography: bib.bib
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=50), message = FALSE)
+library(data.table)
+library(reticulate)
+library(ggplot2)
+source("R/utils.matrix2latex.R")
+```
+
+# Problem 13
+
+<hr>
+
+# Problem 14
+
+<hr>
+
+# Problem 15
+
+The function below generates data with the desired distribution:
+
+```{r, echo=TRUE}
+sim_data <- function(n=100,d=5,a=0.5) {
+  y <- 2*(rbinom(n,1,0.5)-0.5) # generate binary outcome
+  X <- matrix(rnorm(n*d),n) + matrix(kronecker(y,matrix(c(a,rep(0,d-1)))),n,byrow = T) 
+  return(list(X=X,y=y))
+}
+```
+
+```{r}
+n <- 100000
+d <- 5
+a <- 0.5
+invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
+dt <- data.table(y,X)
+avg <- dt[,lapply(.SD,mean),by=y]
+avg_1 <- matrix2latex(matrix(round(unlist(avg[y==1,2:(d+1)]),1)))
+avg_2 <- matrix2latex(matrix(round(unlist(avg[y==-1,2:(d+1)]),1)))
+setnames(dt, sprintf("V%i",1:d), sprintf("X%i",1:d))
+dt <- melt(dt, id.vars = "y")
+```
+
+Figure \@ref(fig:class) provides a quick sanity check: it plots the class-conditional densities of $\mathbf{X}$ where $d=`r d`$, $n=`r n`$ and $a=`r a`$. The data looks normally distributed and the vectors of class conditional empirical means rounded to the nearest decimal are
+
+$$
+\begin{aligned}
+&& \mathbf{\bar{X}}_{\mathbf{y}=1} = `r avg_1` &, \mathbf{\bar{X}}_{\mathbf{y}=-1} = `r avg_2` \\
+\end{aligned}
+$$
+
+
+```{r class, fig.width=10, fig.height=2.3, fig.cap="Class-conditional empirical densities."}
+p <- ggplot(data=dt, aes(x=value, fill=factor(y))) +
+  geom_density(alpha=0.25) +
+  facet_grid(cols=vars(variable)) +
+  scale_fill_discrete("Outcome:") +
+  labs(
+    x="X",
+    y="Conditional density"
+  )
+p
+```
+
+
+
+<hr>

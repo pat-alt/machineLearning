@@ -25,16 +25,19 @@ library(reticulate)
 
 ## Graphical proof
 
-First let us look at the class of all circles:
+We can first consider this problem graphically like we did in class, where we recursively increase $n$ and check if it is still feasible to shatter the $n$ points. A formal proof follows below.
 
+Let us begin by looking at the class of all circles:
+
+```{=tex}
 \begin{equation} 
 \begin{aligned}
 && \mathcal{A}&=\{C_{c,r}: c \in \mathbb{R}^2, r \ge 0\} \\
 \end{aligned}
 (\#eq:all)
 \end{equation}
-
-We can first consider this problem graphically like we did in class, where we recursively increase $n$ and check if it is still feasible to shatter the $n$ points. As you can see below, we can shatter the points through circles of varying radii for $n=3$. For $n=4$ the shadow coefficient is $S_{\mathcal{A}}(4)=14<2^4$. In the picture below no sets can be formed including only points that lie on "opposite" sides of the group of four (pairs $\{A,C\}$ and $\{B,D\}$).
+```
+As you can see below, we can shatter the points through circles of varying radii for $n=3$. For $n=4$ the shatter coefficient is $S_{\mathcal{A}}(4)=14<2^4$. In the picture below no sets can be formed including only points that lie on "opposite" sides of the group of four (pairs $\{A,C\}$ and $\{B,D\}$).
 
 ![](www/ps3_9_circles_1.png)
 
@@ -44,14 +47,15 @@ We can scatter the points differently to make one such set feasible (blue circle
 
 The class of circles with radius one
 
+```{=tex}
 \begin{equation} 
 \begin{aligned}
 && \mathcal{A}&=\{C_{c,1}: c \in \mathbb{R}^2\} \\
 \end{aligned}
 (\#eq:one)
 \end{equation}
-
-is a subset of the class of all circles, hence we know for sure that it VC dimension can be at most 3. To test if it is actually 3 we can just test of $n=3$ points can be shattered. The picture below shows that this is indeed possible.
+```
+is a subset of the class of all circles, hence we know for sure that it VC dimension can be at most 3. To test if it is actually 3 we can just test if $n=3$ points can still be shattered. The picture below shows that this is indeed possible.
 
 ![](www/ps3_9_circles_2.png)
 
@@ -79,7 +83,7 @@ is a subset of the class of all circles, hence we know for sure that it VC dimen
 
 # Problem 11
 
-Let $j=[1,k]$ denote the indices of the non-zero elements of $w$. Then 
+Let $j=[1,k]$ denote the indices of the non-zero elements of $w$. Then
 
 $$
 \begin{aligned}
@@ -87,15 +91,13 @@ $$
 \end{aligned}
 $$
 
-and hence we can rewrite $\mathcal{A}$ as 
-
+and hence we can rewrite $\mathcal{A}$ as
 
 $$
 \begin{aligned}
 && \mathcal{A}&=\{x \in \mathbb{R}^k: \sum_{j=1}^{k}x_jw_j \ge 0\} \\
 \end{aligned}
 $$
-
 
 Then from the Theorem we proved in class it follows that $V_{\mathcal{A}} \le k$. This bound is tighter than for the unrestricted case.
 
@@ -144,7 +146,7 @@ class SmallestCubeClassifier():
     return self.predicted
 ```
 
-where `np.max(np.abs(X[idx,]))` imposes that $a= \max_{i: y=1}(|x_i|)$. That is, it chooses the maximum absolute value of $\mathbf{X}$ conditional on $y=1$. 
+where `np.max(np.abs(X[idx,]))` imposes that $a= \max_{i: y=1}(|x_i|)$. That is, it chooses the maximum absolute value of $\mathbf{X}$ conditional on $y=1$.
 
 Similarly, the smallest rectangle classifier can be implemented as follows:
 
@@ -221,8 +223,7 @@ output <- rbindlist(
 saveRDS(output, file="data/erm.rds")
 ```
 
-
-Figure \@ref(fig:prob-error) plots the resulting error frequencies. Evidently, the cube classifier does a much better job than the rectangle classifier. The latter depends significantly on the dimension, while the former does not (see Figure \@ref(fig:cube) for a clearer picture of the cube classifier). Given that the rectangle classifier essentially classifies for each dimension, it is not surprising at all that its performance depends on $d$: for each $[a_i,b_i]$ there is a chance of choosing bounds that are too tight and hence wrongfully classifying $y_i=1$ as $0$. But then one might wonder if the opposite does not apply to the cube classifier: by choosing a more conservative maximum absolute bound does it not increase the likelihood of misclassifying $y_i=0$ as $1$? By construction this cannot happen, since the $a= \max_{i: y=1}(|x_i|)$ is bounded by $1$. As it approached $1$ for large $n$ the rule underlying the cube classifier essentially just resembles the rule we use to generate the data in the first place, so it is not surprising that the error rate approaches zero very fast. 
+Figure \@ref(fig:prob-error) plots the resulting error frequencies. Evidently, the cube classifier does a much better job than the rectangle classifier. The latter depends significantly on the dimension, while the former does not (see Figure \@ref(fig:cube) for a clearer picture of the cube classifier). Given that the rectangle classifier essentially classifies for each dimension, it is not surprising at all that its performance depends on $d$: for each $[a_i,b_i]$ there is a chance of choosing bounds that are too tight and hence wrongfully classifying $y_i=1$ as $0$. But then one might wonder if the opposite does not apply to the cube classifier: by choosing a more conservative maximum absolute bound does it not increase the likelihood of misclassifying $y_i=0$ as $1$? By construction this cannot happen, since the $a= \max_{i: y=1}(|x_i|)$ is bounded by $1$. As it approached $1$ for large $n$ the rule underlying the cube classifier essentially just resembles the rule we use to generate the data in the first place, so it is not surprising that the error rate approaches zero very fast.
 
 ```{r prob-error, fig.height=4, fig.width=10, fig.cap="Probability of error of the two classifiers for different sample sizes and dimensions."}
 library(ggplot2)
@@ -241,7 +242,6 @@ p <- ggplot(data=output[,.(prob_error=mean(error)),by=.(classif,n,d)], aes(x = n
 p
 ```
 
-
 ```{r cube, fig.cap="Focus on cube classifier."}
 p <- ggplot(data=output[classif=="cube",.(prob_error=mean(error)),by=.(classif,n,d)], aes(x = n, y=prob_error, colour=factor(d))) +
   geom_line() +
@@ -253,4 +253,3 @@ p <- ggplot(data=output[classif=="cube",.(prob_error=mean(error)),by=.(classif,n
   ) 
 p
 ```
-
