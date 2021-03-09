@@ -76,52 +76,82 @@ p <- ggplot(data=dt, aes(x=value, fill=factor(y))) +
 p
 ```
 
-Stochastic gradient descent can be implemented as below. 
+Linear classification through stochastic gradient descent can be implemented as below. 
 
 ```{r, code=readLines("R/stochastic_gradient_descent.R"), eval=FALSE, echo=TRUE}
 ```
 
+```{r}
+d <- 1
+n <- 100
+a <- 0
+invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
+```
+
+<!-- To illustrate how it works, let us begin with a simple 2-$d$ example where $\mathbf{y}$ is perfectly linearly separable given $\mathbf{x}$. In this case, the problem becomes trivial for binary $y$, so instead to make things a little more interesting at this point, let us add some additional noise for a moment. In particular, let $y_i \in \{-1+\varepsilon_i,1+\varepsilon_i \}$. In this context linear separability can still be achieved by choosing a high value for $a$, say $a = `r a`$. -->
+
+<!-- ```{r} -->
+<!-- plot(X,y) -->
+<!-- abline(a=0,b=0,col="red") -->
+<!-- ``` -->
 
 ```{r gridsearch}
-source("R/stochastic_gradient_descent.R")
+source("R/linear_classifier.R")
 set.seed(111)
-d <- round(exp(seq(2,6,length.out=10)))
+d <- round(exp(seq(1,5,length.out=10)))
 n <- round(exp(seq(3,11,length.out=25)))
+n_iter <- c(10,100,1000)
+a <- c(0.001,0.1,0.5,1,5)
 eta <- c(1e-2,1e-5,1e-10,1e-20)
-surrogate <- c("exp", "hinge", "log")
-J <- 10 # number of independent test sets
-grid <- data.table(expand.grid(n=n,d=d,eta=eta,loss=surrogate))
+surrogate <- c("bayes","exp", "hinge", "log")
+J <- 1 # number of independent test sets
+grid <- data.table(expand.grid(n=n,d=d,a=a,eta=eta,n_iter=n_iter,loss=surrogate))
+grid <- grid[sample(1:nrow(grid),20),]
 output <- rbindlist(
   lapply(
     1:nrow(grid),
     function(i) {
-      list2env(c(grid[i,]), envir = environment())
-      invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
+      invisible(list2env(c(grid[i,]), envir = environment()))
+      train <- sim_data(n,d,a) # training data 
+      X_train <- train[["X"]]
+      y_train <- train[["y"]]
+      test <- sim_data(n,d,a) # test data (same size)
+      X_test <- test[["X"]]
+      y_test <- test[["y"]]
       performance <- rbindlist(
-        lapply( # loop over J samples 
+        lapply( # repeat J times since optimization is stochastic
           1:J,
           function(j) {
             # SGD:
-            sgd <- stochastic_gradient_descent(X=X, y=y, eta=eta, loss=loss)
-            fitted <- predict(sgd)
-            error <- sum(fitted * y < 0)
+            if (loss=="bayes") {
+              fitted_train <- sign(X_train %*% c(1,rep(0,d-1)))
+              fitted_test <- sign(X_test %*% c(1,rep(0,d-1)))
+            } else {
+              mod <- linear_classifier(X=X_train, y=y_train, eta=eta, loss=loss, n_iter = n_iter)
+              fitted_train <- predict(mod)
+              fitted_test <- predict(mod, newdata = X_test)
+            }
+            error_rate_train <- sum(fitted_train * y_train < 0)/n
+            error_rate_test <- sum(fitted_test * y_test < 0)/n
             performance <- data.table(
               n = n,
               j = j,
               d = d,
-              error = error,
-              classif = classifier_name
+              n_iter = n_iter,
+              eta,
+              loss = loss,
+              error_rate_train = error_rate_train,
+              error_rate_test = error_rate_test
             )
             return(performance)
           }
         )
       )
-      # message("Done with:")
-      # message(c(grid[i,]))
       return(performance)
     }
   )
 )
+saveRDS(output, file="data/sgd.rds")
 ```
 
 
