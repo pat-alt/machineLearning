@@ -64,7 +64,6 @@ $$
 \end{aligned}
 $$
 
-
 ```{r class, fig.width=10, fig.height=2.3, fig.cap="Class-conditional empirical densities."}
 p <- ggplot(data=dt, aes(x=value, fill=factor(y))) +
   geom_density(alpha=0.25) +
@@ -77,6 +76,53 @@ p <- ggplot(data=dt, aes(x=value, fill=factor(y))) +
 p
 ```
 
+Stochastic gradient descent can be implemented as below. 
+
+```{r, code=readLines("R/stochastic_gradient_descent.R"), eval=FALSE, echo=TRUE}
+```
+
+
+```{r gridsearch}
+source("R/stochastic_gradient_descent.R")
+set.seed(111)
+d <- round(exp(seq(2,6,length.out=10)))
+n <- round(exp(seq(3,11,length.out=25)))
+eta <- c(1e-2,1e-5,1e-10,1e-20)
+surrogate <- c("exp", "hinge", "log")
+J <- 10 # number of independent test sets
+grid <- data.table(expand.grid(n=n,d=d,eta=eta,loss=surrogate))
+output <- rbindlist(
+  lapply(
+    1:nrow(grid),
+    function(i) {
+      list2env(c(grid[i,]), envir = environment())
+      invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
+      performance <- rbindlist(
+        lapply( # loop over J samples 
+          1:J,
+          function(j) {
+            # SGD:
+            sgd <- stochastic_gradient_descent(X=X, y=y, eta=eta, loss=loss)
+            fitted <- predict(sgd)
+            error <- sum(fitted * y < 0)
+            performance <- data.table(
+              n = n,
+              j = j,
+              d = d,
+              error = error,
+              classif = classifier_name
+            )
+            return(performance)
+          }
+        )
+      )
+      # message("Done with:")
+      # message(c(grid[i,]))
+      return(performance)
+    }
+  )
+)
+```
 
 
 <hr>
