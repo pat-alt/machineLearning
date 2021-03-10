@@ -3,14 +3,14 @@ title: "Problem Set 4"
 author: "Patrick Altmeyer"
 date: "`r format(Sys.Date(), '%d %B, %Y')`"
 output: 
-  bookdown::pdf_document2:
-    toc: false
-    number_sections: false
   bookdown::html_document2:
     code_folding: show
     number_sections: false
     toc: true
     toc_float: true
+  bookdown::pdf_document2:
+    toc: false
+    number_sections: false
 bibliography: bib.bib
 ---
 
@@ -76,27 +76,48 @@ p <- ggplot(data=dt, aes(x=value, fill=factor(y))) +
 p
 ```
 
-Linear classification through stochastic gradient descent can be implemented as below. 
+To implement linear classification through stochastic gradient descent using different surrogate loss functions $\phi$, we firstly need to derive analytical solutions for the corresponding gradients. For the exponential loss $\phi(-\mathbf{w}^T\mathbf{x}_i y_i)=\exp(-\mathbf{w}^T\mathbf{x}_i y_i)$ we simply have:
 
-```{r, code=readLines("R/stochastic_gradient_descent.R"), eval=FALSE, echo=TRUE}
+$$
+\begin{equation} 
+\begin{aligned}
+&& \nabla \phi(-\mathbf{w}^T\mathbf{x}_i y_i)&=-\mathbf{x}_i y_i \exp(-\mathbf{w}^T\mathbf{x}_i y_i)\\
+\end{aligned}
+(\#eq:exp)
+\end{equation}
+$$
+
+For the Hinge loss $\phi(-\mathbf{w}^T\mathbf{x}_i y_i)=(1-\mathbf{w}^T\mathbf{x}_i y_i)_+$ we have:
+
+$$
+\begin{equation} 
+\begin{aligned}
+&& \nabla \phi(-\mathbf{w}^T\mathbf{x}_i y_i)&= \begin{cases} -\mathbf{x}_i y_i & \text{if} \ \ \ \mathbf{w}^T\mathbf{x}_i y_i \le 1\\ 0 & \text{otherwise} \end{cases} \\
+\end{aligned}
+(\#eq:hinge)
+\end{equation}
+$$
+Finally, for log-loss $\phi(-\mathbf{w}^T\mathbf{x}_i y_i)=\log_2(1+\exp(-\mathbf{w}^T\mathbf{x}_i y_i))$ we have:
+
+$$
+\begin{equation} 
+\begin{aligned}
+&& \nabla \phi(-\mathbf{w}^T\mathbf{x}_i y_i)&=-\mathbf{x}_i y_i \frac{\exp(-\mathbf{w}^T\mathbf{x}_i y_i)}{\left(\exp(-\mathbf{w}^T\mathbf{x}_i y_i)+1\right)\log(2)} \\
+\end{aligned}
+(\#eq:log)
+\end{equation}
+$$
+
+The algorithm can then be implemented as below. The main function `linear_classifier` runs the stochastic gradient descent for a given choice of the surrogate loss function. The methods that follows further below simply define what the class `linear_classifier` prints and how we can predict from it, once it is fitted. 
+
+```{r, code=readLines("R/linear_classifier.R"), eval=FALSE, echo=TRUE}
 ```
 
-```{r}
-d <- 1
-n <- 100
-a <- 0
-invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
-```
-
-<!-- To illustrate how it works, let us begin with a simple 2-$d$ example where $\mathbf{y}$ is perfectly linearly separable given $\mathbf{x}$. In this case, the problem becomes trivial for binary $y$, so instead to make things a little more interesting at this point, let us add some additional noise for a moment. In particular, let $y_i \in \{-1+\varepsilon_i,1+\varepsilon_i \}$. In this context linear separability can still be achieved by choosing a high value for $a$, say $a = `r a`$. -->
-
-<!-- ```{r} -->
-<!-- plot(X,y) -->
-<!-- abline(a=0,b=0,col="red") -->
-<!-- ``` -->
-
-```{r gridsearch}
+```{r, echo=FALSE}
 source("R/linear_classifier.R")
+```
+
+```{r gridsearch, eval=F}
 set.seed(111)
 d <- round(exp(seq(1,5,length.out=10)))
 n <- round(exp(seq(3,11,length.out=25)))
@@ -106,7 +127,7 @@ eta <- c(1e-2,1e-5,1e-10,1e-20)
 surrogate <- c("bayes","exp", "hinge", "log")
 J <- 1 # number of independent test sets
 grid <- data.table(expand.grid(n=n,d=d,a=a,eta=eta,n_iter=n_iter,loss=surrogate))
-grid <- grid[sample(1:nrow(grid),20),]
+# grid <- grid[sample(1:nrow(grid),1000),]
 output <- rbindlist(
   lapply(
     1:nrow(grid),
@@ -137,6 +158,7 @@ output <- rbindlist(
               n = n,
               j = j,
               d = d,
+              a = a,
               n_iter = n_iter,
               eta,
               loss = loss,
@@ -151,8 +173,136 @@ output <- rbindlist(
     }
   )
 )
+output <- melt(output,measure.vars = c("error_rate_train","error_rate_test"))
 saveRDS(output, file="data/sgd.rds")
 ```
 
+The algorithm is run for the three different loss functions and many different values of $n$, $d$, $\eta$, $a$ and $T$ (the number of iterations). Figures (\@ref(fig:n-d)), (\@ref(fig:niter-a)) and (\@ref(fig:niter-eta)) show the resulting train and test error frequencies conditional on the different parameter choices. A first general observation is that the Bayes classifier outperforms the linear classifier, independent of the choice of $\phi$, which was to expect. The choice of the surrogate loss function does not appear to have a major impact on accuracy. 
+
+Figure (\@ref(fig:n-d)) shows error frequencies by sample size and dimension for different classifiers averaged across all other dimensions. It demonstrates that the test error initially decreases as a function of $n$ and increases as a function of $d$, again as one would expect. What is somewhat curious is the fact the the opposite relationship appears to hold for the training error. It appears that for small choices of $n$, higher values of $d$ achieve higher in-sample accuracy. What this illustrates is overfitting: within the framework of the bias-variance trade-off, $d>>n$ in these cases leads to very small bias, but high variance (hence the poor out-of-sample performance in those cases). 
+
+Figure (\@ref(fig:niter-a)) shows error frequencies by parameter $a$ and number of iterations $T$ for different classifiers (again averaged across all other dimensions). As one would expect, the accuracy increases across the board as the number of iterations increases. With respect to $a$, the increase in accuracy is also intuitive, since for greater $a$ the likelihood of being able to perfectly separate the labels conditional on $\mathbf{X}$ increases. In fact, for $a=5$ the linear classifier commits no errors. The Bayes classifier is of course independent of the number of iterations (since it does not iterate), but depends on $a$ in the same way as the linear classifier.
+
+Finally, Figure (\@ref(fig:niter-eta)) shows error frequencies by learning rate and number of iterations for different classifiers (once again averaged across all other dimensions). For the given choices of $\eta$ and the number of iterations we see no relationship between the choice of $\eta$ and the resulting error frequency. But Figure (\@ref(fig:niter-eta)) fails to illustrate the rate of convergence, which is what the learning rate $\eta$ primarily affects. Below we will see how exactly $\eta$ comes into play.
+
+```{r n-d, fig.height=4.5, fig.width=10, fig.cap="Train and test error frequencies by sample size and dimension for different classifiers (averaged across all other dimensions)."}
+library(ggplot2)
+output <- readRDS(file="data/sgd.rds")
+levels(output$variable) <- c("Train", "Test")
+p <- ggplot(data=output[,.(prob_error=mean(value,na.rm=TRUE)),by=.(loss,n,d,variable)], 
+            aes(x = log(n), y=prob_error, colour=factor(d))) +
+  geom_line() +
+  scale_color_discrete(name="Dimension:") +
+  scale_linetype_discrete(name="Classifier:") +
+  labs(
+    x="Sample size (logs)",
+    y="Probability of error"
+  ) + 
+  facet_grid(
+    cols = vars(loss),
+    rows = vars(variable)
+  )
+p
+```
+
+
+```{r niter-a, fig.height=4.5, fig.width=10, fig.cap="Train and test error frequencies by parameter a and number of iterations for different classifiers (averaged across all other dimensions)."}
+p <- ggplot(data=output[,.(prob_error=mean(value,na.rm=TRUE)),by=.(loss,n_iter,a,variable)], 
+            aes(x = factor(a), y=prob_error, fill=factor(n_iter), colour=factor(n_iter))) +
+  geom_col(position = "dodge", alpha=0.5) +
+  scale_fill_discrete(name="Number of iterations:") +
+  scale_colour_discrete(name="Number of iterations:") +
+  scale_linetype_discrete(name="Classifier:") +
+  labs(
+    x="Parameter a",
+    y="Probability of error"
+  ) + 
+  facet_grid(
+    cols = vars(loss),
+    rows = vars(variable)
+  )
+p
+```
+
+
+```{r niter-eta, fig.height=4.5, fig.width=10, fig.cap="Train and test error frequencies by learning rate and number of iterations for different classifiers (averaged across all other dimensions)."}
+p <- ggplot(data=output[,.(prob_error=mean(value,na.rm=TRUE)),by=.(loss,n_iter,eta,variable)], 
+            aes(x = factor(eta), y=prob_error, fill=factor(n_iter), colour=factor(n_iter))) +
+  geom_col(position = "dodge", alpha=0.5) +
+  scale_fill_discrete(name="Number of iterations:") +
+  scale_colour_discrete(name="Number of iterations:") +
+  scale_linetype_discrete(name="Classifier:") +
+  labs(
+    x="Parameter a",
+    y="Probability of error"
+  ) + 
+  facet_grid(
+    cols = vars(loss),
+    rows = vars(variable)
+  )
+p
+```
+
+```{r}
+d <- 1
+n <- 100
+a <- 5
+invisible(list2env(sim_data(n=n,d=d,a=a),envir = environment()))
+noise <- 0.5
+y <- y + rnorm(length(y), sd=noise)
+eta <- c(.1,.05,.01)
+eta_lat <- matrix2latex(matrix(eta))
+n_iter <- 100
+```
+
+To illustrate how the the algorithm depends on the learning rate $\eta$, let us consider a simple example where $x_i\in\mathbb{R}$ is $1$-dimensional and $\mathbf{y}$ is perfectly linearly separable given $\mathbf{x}$. In this case, the problem becomes trivial for binary $y$, so to make things a little more interesting at this point, let us add some additional noise for a moment. In particular, let $y_i \in \{-1+\varepsilon_i,1+\varepsilon_i \}$ where $\varepsilon_i \sim \mathcal{N}(0,`r noise`^2)$. In this context linear separability can still be achieved by choosing a high value for $a$, say $a = `r a`$. Now we will run the algorithm for different values of $\eta$, namely:
+
+$$
+\begin{aligned}
+&& \eta&=`r eta_lat` \\
+\end{aligned}
+$$
+
+Figure (\@ref(fig:anim)) demonstrates that the algorithm takes longer to converge for the more conservative choice of $\eta=`r eta[3]`$, as one would expect. In fact, for this choice of $\eta$ the linear classifier does not manage to perfectly separate the two clusters after $n=`r n_iter`$ iterations.
+ 
+```{r}
+set.seed(123)
+steps <- rbindlist(
+  lapply(
+    1:length(eta),
+    function(i) {
+      mod <- linear_classifier(X,y,save_steps = T,eta=eta[i],n_iter = n_iter)
+      steps <- mod$steps
+      steps[,eta:=eta[i]]
+      return(steps)
+    }
+  )
+)
+```
+
+```{r anim, fig.height=4, fig.width=6, fig.cap="The effect of the learning rate on time to convergence."}
+dt <- rbindlist(
+  lapply(
+    1:n_iter,
+    function(i) {
+      dt <- data.table(iter=i, y=y, x=c(X))
+      return(dt)
+    }
+  )
+)
+dt_plot <- merge(dt,steps,on="iter",allow.cartesian = T)
+library(gganimate)
+p <- ggplot(data=dt_plot, aes(x=x, y=y)) +
+  scale_colour_discrete(name="Learning rate:") +
+  geom_point() +
+  geom_abline(aes(slope=w, intercept=0, colour=factor(eta))) +
+  transition_states(
+    iter,
+    transition_length = .01,
+    state_length = .01
+  ) +
+  ease_aes('cubic-in-out')
+p
+```
 
 <hr>

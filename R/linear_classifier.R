@@ -1,5 +1,5 @@
 # Stochastic gradient descent: ----
-linear_classifier <- function(X,y,eta,n_iter=1000,w_init=NULL,loss="exp") {
+linear_classifier <- function(X,y,eta=0.001,n_iter=1000,w_init=NULL,loss="exp",save_steps=FALSE) {
   # Initialization:
   n <- nrow(X)
   d <- ncol(X)
@@ -7,6 +7,11 @@ linear_classifier <- function(X,y,eta,n_iter=1000,w_init=NULL,loss="exp") {
     w <- matrix(rep(0,d))
   } else {
     w <- matrix(w_init)
+  }
+  if (save_steps) {
+    steps <- data.table(iter=0, w=c(w), d=1:d)
+  } else {
+    steps <- NA
   }
   w_avg <- 1/n_iter * w
   iter <- 1
@@ -45,7 +50,12 @@ linear_classifier <- function(X,y,eta,n_iter=1000,w_init=NULL,loss="exp") {
     v_t <- grad(X_t,y_t,w)
     # Update:
     w <- w - eta * v_t
-    w_avg <- w_avg + 1/n_iter * w
+    if (!is.na(w) & is.finite(w)) {
+      w_avg <- w_avg + 1/n_iter * w
+    }
+    if (save_steps) {
+      steps <- rbind(steps, data.table(iter=iter, w=c(w), d=1:d))
+    }
     iter <- iter + 1
   }
   output <- list(
@@ -54,7 +64,8 @@ linear_classifier <- function(X,y,eta,n_iter=1000,w_init=NULL,loss="exp") {
     coefficients = w_avg,
     eta = eta,
     n_iter = n_iter, 
-    loss = loss
+    loss = loss,
+    steps = steps
   )
   class(output) <- "linear_classifier"
   return(output)
